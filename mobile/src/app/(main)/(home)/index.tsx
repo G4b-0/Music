@@ -1,23 +1,22 @@
 import { FlashList } from "@shopify/flash-list";
-import { useQuery } from "@tanstack/react-query";
-import { eq } from "drizzle-orm";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
+import { ScrollView } from "react-native-gesture-handler";
 
-import { albums, playlists } from "@/db/schema";
-import { getAlbums, getPlaylists, getSpecialPlaylist } from "@/db/queries";
-import { formatForMediaCard } from "@/db/utils/formatters";
-
+import {
+  useFavoriteListsForCards,
+  useFavoriteTracksCount,
+} from "@/queries/favorite";
 import { useGetColumn } from "@/hooks/useGetColumn";
 import { useMusicStore } from "@/modules/media/services/Music";
-import { StickyActionLayout } from "@/layouts/StickyActionLayout";
+import { StickyActionScrollLayout } from "@/layouts";
 
-import { favoriteKeys } from "@/constants/QueryKeys";
+import { cn } from "@/lib/style";
 import { abbreviateNum } from "@/utils/number";
-import { Button } from "@/components/new/Form";
-import { AccentText, StyledText } from "@/components/new/Typography";
+import { Button } from "@/components/Form";
+import { AccentText, StyledText } from "@/components/Typography";
 import { ReservedPlaylists } from "@/modules/media/constants";
 import {
   MediaCard,
@@ -29,7 +28,7 @@ import {
 export default function HomeScreen() {
   const { t } = useTranslation();
   return (
-    <StickyActionLayout title={t("header.home")}>
+    <StickyActionScrollLayout title={t("header.home")}>
       <StyledText className="-mb-4 text-xs">
         {t("home.playedRecent")}
       </StyledText>
@@ -37,7 +36,7 @@ export default function HomeScreen() {
 
       <StyledText className="-mb-4 text-xs">{t("home.favorites")}</StyledText>
       <Favorites />
-    </StickyActionLayout>
+    </StickyActionScrollLayout>
   );
 }
 
@@ -72,24 +71,25 @@ function RecentlyPlayed() {
   return (
     <FlashList
       ref={listRef}
-      estimatedItemSize={width + 16} // Column width + gap from padding left
+      estimatedItemSize={width + 12} // Column width + gap from padding left
       horizontal
       data={recentlyPlayedData}
       keyExtractor={({ href }) => href}
       renderItem={({ item, index }) => (
         <View
           onLayout={(e) => setItemHeight(e.nativeEvent.layout.height)}
-          className={index !== 0 ? "pl-4" : ""}
+          className={cn({ "pl-3": index !== 0 })}
         >
           <MediaCard {...item} size={width} />
         </View>
       )}
-      showsHorizontalScrollIndicator={false}
       ListEmptyComponent={
         <StyledText onLayout={() => setInitNoData(true)} className="my-4">
           {t("response.noRecents")}
         </StyledText>
       }
+      renderScrollComponent={ScrollView}
+      showsHorizontalScrollIndicator={false}
       className="-mx-4"
       contentContainerClassName="px-4"
     />
@@ -100,7 +100,7 @@ function RecentlyPlayed() {
 //#region Favorites
 /** Display list of content we've favorited. */
 function Favorites() {
-  const { data } = useFavoriteListsForMediaCard();
+  const { data } = useFavoriteListsForCards();
   return (
     <MediaCardList
       data={[MediaCardPlaceholderContent, ...(data ?? [])]}
@@ -121,12 +121,11 @@ function FavoriteTracks({ size }: { size: number }) {
 
   return (
     <Button
-      preset="danger"
       onPress={() =>
         router.navigate(`/playlist/${ReservedPlaylists.favorites}`)
       }
       style={{ width: size, height: size }}
-      className="items-center gap-0 rounded-lg"
+      className="gap-0 rounded-lg bg-red"
     >
       <AccentText className="text-[3rem] text-neutral100">
         {trackCount}
@@ -135,38 +134,4 @@ function FavoriteTracks({ size }: { size: number }) {
     </Button>
   );
 }
-//#endregion
-
-//#region Data
-async function getFavoriteLists() {
-  const [favoriteAlbums, favoritePlaylists] = await Promise.all([
-    getAlbums([eq(albums.isFavorite, true)]),
-    getPlaylists([eq(playlists.isFavorite, true)]),
-  ]);
-  return { albums: favoriteAlbums, playlists: favoritePlaylists };
-}
-
-const useFavoriteTracksCount = () =>
-  useQuery({
-    queryKey: favoriteKeys.tracks(),
-    queryFn: () => getSpecialPlaylist(ReservedPlaylists.favorites),
-    staleTime: Infinity,
-    select: (data) => data.tracks.length,
-  });
-
-const useFavoriteListsForMediaCard = () =>
-  useQuery({
-    queryKey: favoriteKeys.lists(),
-    queryFn: getFavoriteLists,
-    staleTime: Infinity,
-    select: (data) =>
-      [
-        ...data.albums.map((album) =>
-          formatForMediaCard({ type: "album", data: album }),
-        ),
-        ...data.playlists.map((playlist) =>
-          formatForMediaCard({ type: "playlist", data: playlist }),
-        ),
-      ].sort((a, b) => a.title.localeCompare(b.title)),
-  });
 //#endregion

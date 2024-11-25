@@ -1,7 +1,6 @@
 import { useIsFocused } from "@react-navigation/native";
 import type { FlashListProps } from "@shopify/flash-list";
-import { useQuery } from "@tanstack/react-query";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   BackHandler,
@@ -9,6 +8,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { ScrollView } from "react-native-gesture-handler";
 import Animated, {
   FadeInLeft,
   FadeOutRight,
@@ -23,22 +23,24 @@ import Animated, {
 } from "react-native-reanimated";
 
 import type { FileNode } from "@/db/schema";
-import { getFolder } from "@/db/queries";
-import { formatTracksForTrack } from "@/db/utils/formatters";
 
+import { useFolderContent } from "@/queries/folder";
 import {
   StickyActionListLayout,
   useStickyActionListLayoutRef,
-} from "@/layouts/StickyActionLayout";
+} from "@/layouts";
 
-import { fileNodeKeys } from "@/constants/QueryKeys";
 import { cn } from "@/lib/style";
 import type { Maybe } from "@/utils/types";
-import { Ripple } from "@/components/new/Form";
-import { Loading } from "@/components/new/Loading";
-import { StyledText } from "@/components/new/Typography";
-import { MediaImage, Track } from "@/modules/media/components";
+import { Ripple } from "@/components/Form";
+import { Loading } from "@/components/Loading";
+import { StyledText } from "@/components/Typography";
+import { Track } from "@/modules/media/components";
 import type { PlayListSource } from "@/modules/media/types";
+import { SearchResult } from "@/modules/search/components";
+
+/** Animated scrollview supporting gestures. */
+const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
 type FolderData = FileNode | Track.Content;
 
@@ -47,18 +49,26 @@ export default function FolderScreen() {
   const { t } = useTranslation();
   const isFocused = useIsFocused();
   const listRef = useStickyActionListLayoutRef<FolderData>();
-  const [dirSegments, setDirSegments] = useState<string[]>([]);
+  const [dirSegments, _setDirSegments] = useState<string[]>([]);
 
   const fullPath = dirSegments.join("/");
 
   const { isPending, data } = useFolderContent(fullPath);
 
+  /** Modified state setter that scrolls to the top of the page. */
+  const setDirSegments: React.Dispatch<React.SetStateAction<string[]>> =
+    useCallback(
+      (value) => {
+        // Make sure we start at the beginning whenever the directory segments change.
+        listRef.current?.scrollToOffset({ offset: 0 });
+        _setDirSegments(value);
+      },
+      [listRef],
+    );
+
   useEffect(() => {
     // Prevent event from working when this screen isn't focused.
     if (!isFocused) return;
-
-    // Make sure we start at the beginning whenever the directory segments change.
-    listRef.current?.scrollToOffset({ offset: 0 });
 
     // Pop a directory segment if we detect a back gesture/action.
     const onBackPress = () => {
@@ -72,7 +82,7 @@ export default function FolderScreen() {
     return () => {
       BackHandler.removeEventListener("hardwareBackPress", onBackPress);
     };
-  }, [dirSegments, isFocused, listRef]);
+  }, [dirSegments, isFocused, setDirSegments]);
 
   // Information about this track list.
   const trackSource = { type: "folder", id: `${fullPath}/` } as const;
@@ -108,7 +118,7 @@ const FolderListPreset = (props: {
   setDirSegments: React.Dispatch<React.SetStateAction<string[]>>;
 }) =>
   ({
-    estimatedItemSize: 56, // 48px Height + 8px Margin Botton
+    estimatedItemSize: 56, // 48px Height + 8px Margin Top
     data: props.data,
     keyExtractor: (_, index) => `${index}`,
     renderItem: ({ item, index }) => (
@@ -118,13 +128,8 @@ const FolderListPreset = (props: {
         ) : (
           <Ripple
             onPress={() => props.setDirSegments((prev) => [...prev, item.name])}
-            wrapperClassName="rounded-sm"
-            className="p-0 pr-4"
           >
-            <MediaImage type="folder" size={48} source={null} radius="sm" />
-            <StyledText numberOfLines={1} className="shrink grow">
-              {item.name}
-            </StyledText>
+            <SearchResult type="folder" source={null} title={item.name} />
           </Ripple>
         )}
       </View>
@@ -156,7 +161,7 @@ function Breadcrumbs({
   const newScrollPos = useSharedValue(0);
 
   const onLayoutShift = (newWidth: number) => {
-    // `newWidth` doesn't include the `px-4` on `<StickyActionLayout />`
+    // `newWidth` doesn't include the `px-4` on `<StickyActionListLayout />`
     // and in `<Animated.ScrollView />`.
     newScrollPos.value = 64 + newWidth - screenWidth;
     if (newWidth < lastWidth.value) {
@@ -177,12 +182,12 @@ function Breadcrumbs({
   }));
 
   return (
-    <Animated.ScrollView
+    <AnimatedScrollView
       ref={breadcrumbsRef}
       horizontal
       showsHorizontalScrollIndicator={false}
-      className="rounded-md bg-surface"
       style={{ width: screenWidth - 32 }}
+      className="rounded-md bg-surface"
       contentContainerClassName="px-4"
     >
       <Animated.View
@@ -220,19 +225,7 @@ function Breadcrumbs({
       </Animated.View>
       {/* Animated padding to allow exiting scroll animation to look nice. */}
       <Animated.View style={offsetStyle} />
-    </Animated.ScrollView>
+    </AnimatedScrollView>
   );
 }
-//#endregion
-
-//#region Data
-const useFolderContent = (path?: string) =>
-  useQuery({
-    queryKey: fileNodeKeys.detail(path ?? ".root"),
-    queryFn: () => getFolder(path),
-    select: ({ subDirectories, tracks }) => ({
-      subDirectories,
-      tracks: formatTracksForTrack({ type: "track", data: tracks }),
-    }),
-  });
 //#endregion

@@ -7,12 +7,12 @@ import { LogoGitHub, LogoPlayStore } from "@/icons";
 import { useUserPreferencesStore } from "@/services/UserPreferences";
 import { useHasNewUpdate } from "@/hooks/useHasNewUpdate";
 import { useTheme } from "@/hooks/useTheme";
-import { StickyActionHeader } from "@/layouts/StickyActionLayout";
+import { StickyActionHeader } from "@/layouts";
 
 import * as LINKS from "@/constants/Links";
 import { FontFamily, FontSize } from "@/constants/Styles";
-import { Button } from "@/components/new/Form";
-import { StyledText } from "@/components/new/Typography";
+import { Button } from "@/components/Form";
+import { StyledText } from "@/components/Typography";
 
 /** Screen for `/setting/update` route. */
 export default function AppUpdateScreen() {
@@ -89,7 +89,7 @@ export default function AppUpdateScreen() {
               `${LINKS.GITHUB}/releases/tag/${release.version}`,
             )
           }
-          className="flex-1 items-center p-2"
+          className="flex-1 p-2"
         >
           <LogoGitHub />
           <StyledText center className="text-xs">
@@ -99,7 +99,7 @@ export default function AppUpdateScreen() {
         {!isRC ? (
           <Button
             onPress={() => WebBrowser.openBrowserAsync(LINKS.PLAYSTORE)}
-            className="flex-1 items-center p-2"
+            className="flex-1 p-2"
           >
             <LogoPlayStore />
             <StyledText center className="text-xs">

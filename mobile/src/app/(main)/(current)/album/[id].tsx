@@ -1,34 +1,35 @@
 import { Link, Stack, useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
 
-import { Ionicons } from "@/resources/icons";
-import { useAlbumForCurrentPage } from "@/api/albums/[id]";
-import { useToggleFavorite } from "@/api/favorites/[id]";
+import { Favorite } from "@/icons";
+import { useAlbumForScreen, useFavoriteAlbum } from "@/queries/album";
+import { MediaListHeader } from "@/layouts/CurrentList";
 
 import { mutateGuard } from "@/lib/react-query";
-import { MediaScreenHeader } from "@/components/media/screen-header";
-import { StyledPressable } from "@/components/ui/pressable";
-import { Description } from "@/components/ui/text";
+import { IconButton } from "@/components/Form";
+import { StyledText } from "@/components/Typography";
 import { TrackList } from "@/modules/media/components";
 
 /** Screen for `/album/[id]` route. */
 export default function CurrentAlbumScreen() {
   const { id: _albumId } = useLocalSearchParams<{ id: string }>();
   const albumId = _albumId!;
-  const { isPending, error, data } = useAlbumForCurrentPage(albumId);
-  const toggleFavoriteFn = useToggleFavorite({ type: "album", id: albumId });
+  const { isPending, error, data } = useAlbumForScreen(albumId);
+  const favoriteAlbum = useFavoriteAlbum(albumId);
 
   if (isPending) return <View className="w-full flex-1 px-4" />;
   else if (error) {
     return (
       <View className="w-full flex-1 px-4">
-        <Description intent="error">Error: Album not found</Description>
+        <StyledText preset="dimOnCanvas" className="text-base">
+          Error: Album not found
+        </StyledText>
       </View>
     );
   }
 
   // Add optimistic UI updates.
-  const isToggled = toggleFavoriteFn.isPending
+  const isToggled = favoriteAlbum.isPending
     ? !data.isFavorite
     : data.isFavorite;
 
@@ -40,24 +41,26 @@ export default function CurrentAlbumScreen() {
       <Stack.Screen
         options={{
           headerRight: () => (
-            <StyledPressable
-              onPress={() => mutateGuard(toggleFavoriteFn, undefined)}
-              forIcon
+            <IconButton
+              kind="ripple"
+              // FIXME: Temporary accessibility label.
+              accessibilityLabel={isToggled ? "Unfavorite" : "Favorite"}
+              onPress={() => mutateGuard(favoriteAlbum, !data.isFavorite)}
             >
-              <Ionicons name={isToggled ? "heart" : "heart-outline"} />
-            </StyledPressable>
+              <Favorite filled={isToggled} />
+            </IconButton>
           ),
         }}
       />
       <View className="w-full flex-1 px-4">
-        <MediaScreenHeader
+        <MediaListHeader
           source={data.imageSource}
           title={data.name}
           SubtitleComponent={
             <Link
               href={`/artist/${encodeURIComponent(data.artistName)}`}
               numberOfLines={1}
-              className="self-start font-geistMonoLight text-xs text-accent50"
+              className="self-start font-roboto text-xs text-red"
             >
               {data.artistName}
             </Link>
@@ -65,10 +68,7 @@ export default function CurrentAlbumScreen() {
           metadata={data.metadata}
           trackSource={trackSource}
         />
-        <TrackList
-          data={data.tracks}
-          config={{ source: trackSource, origin: "album", hideImage: true }}
-        />
+        <TrackList data={data.tracks} trackSource={trackSource} />
       </View>
     </>
   );

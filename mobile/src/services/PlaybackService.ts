@@ -1,5 +1,5 @@
+import { toast } from "@backpackapp-io/react-native-toast";
 import { router } from "expo-router";
-import { Toast } from "react-native-toast-notifications";
 import TrackPlayer, {
   AppKilledPlaybackBehavior,
   Capability,
@@ -7,8 +7,8 @@ import TrackPlayer, {
   RepeatMode,
 } from "react-native-track-player";
 
-import { deleteTrack } from "@/db/queries";
-
+import i18next from "@/modules/i18n";
+import { deleteTrack } from "@/api/track";
 import type { TrackStatus } from "@/modules/media/services/Music";
 import {
   Queue,
@@ -20,6 +20,7 @@ import { MusicControls } from "@/modules/media/services/Playback";
 import { removeUnusedCategories } from "@/modules/scanning/helpers/audio";
 
 import { clearAllQueries } from "@/lib/react-query";
+import { ToastOptions } from "@/lib/toast";
 
 /** How we handle the actions in the media control notification. */
 export async function PlaybackService() {
@@ -120,7 +121,10 @@ export async function PlaybackService() {
       router.navigate("/");
     }
 
-    Toast.show("Track no longer exists.", { type: "danger", duration: 3000 });
+    toast.error(
+      i18next.t("template.notFound", { name: erroredTrack?.title }),
+      ToastOptions,
+    );
     // Clear all reference of the current playing track.
     await resetState();
   });

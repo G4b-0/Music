@@ -7,6 +7,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getLocales } from "expo-localization";
 import { Appearance } from "react-native";
+import TrackPlayer from "react-native-track-player";
 import { useStore } from "zustand";
 import {
   createJSONStorage,
@@ -21,6 +22,11 @@ import { RecentList } from "@/modules/media/services/Music";
 
 import { clearAllQueries } from "@/lib/react-query";
 
+/** Options for app themes. */
+export const ThemeOptions = ["light", "dark", "system"] as const;
+/** Options for app accent font. */
+export const FontOptions = ["NDot", "NType"] as const;
+
 //#region Zustand Store
 //#region UserPreferencesStore Interface
 interface UserPreferencesStore {
@@ -33,11 +39,11 @@ interface UserPreferencesStore {
   setLanguage: (languageCode: string) => void;
 
   /** "Color" the overall app will look like. */
-  theme: "light" | "dark" | "system";
-  setTheme: (newTheme: "light" | "dark" | "system") => void;
+  theme: (typeof ThemeOptions)[number];
+  setTheme: (newTheme: UserPreferencesStore["theme"]) => void;
   /** Font used for some accent text (ie: major headings). */
-  accentFont: "NDot" | "NType";
-  setAccentFont: (newFont: "NDot" | "NType") => void;
+  accentFont: (typeof FontOptions)[number];
+  setAccentFont: (newFont: UserPreferencesStore["accentFont"]) => void;
 
   /** Minimum number of seconds a track needs to have to be saved. */
   minSeconds: number;
@@ -49,6 +55,7 @@ interface UserPreferencesStore {
 
   /** Percentage of device volume audio will be outputted with. */
   volume: number;
+  setVolume: (newVolume: number) => void;
 }
 //#endregion
 
@@ -59,6 +66,7 @@ const OMITTED_FIELDS: string[] = [
   "setLanguage",
   "setTheme",
   "setAccentFont",
+  "setVolume",
 ] satisfies Array<keyof UserPreferencesStore>;
 //#endregion
 
@@ -68,23 +76,15 @@ export const userPreferencesStore = createStore<UserPreferencesStore>()(
     persist(
       (set) => ({
         _hasHydrated: false as boolean,
-        setHasHydrated: (state) => {
-          set({ _hasHydrated: state });
-        },
+        setHasHydrated: (state) => set({ _hasHydrated: state }),
 
         language: "",
-        setLanguage: (languageCode) => {
-          set({ language: languageCode });
-        },
+        setLanguage: (languageCode) => set({ language: languageCode }),
 
         theme: "system",
-        setTheme: (newTheme) => {
-          set({ theme: newTheme });
-        },
+        setTheme: (newTheme) => set({ theme: newTheme }),
         accentFont: "NType",
-        setAccentFont: (newFont) => {
-          set({ accentFont: newFont });
-        },
+        setAccentFont: (newFont) => set({ accentFont: newFont }),
 
         minSeconds: 15,
 
@@ -92,6 +92,7 @@ export const userPreferencesStore = createStore<UserPreferencesStore>()(
         listBlock: [],
 
         volume: 1,
+        setVolume: (newVolume) => set({ volume: newVolume }),
       }),
       {
         name: "music::user-preferences",
@@ -150,10 +151,18 @@ userPreferencesStore.subscribe(
     // Set the language used by the app.
     await i18next.changeLanguage(languageCode);
     // Make sure our queries that use translated values are updated.
-    clearAllQueries({ remove: true });
+    clearAllQueries();
     // Make sure the recent list data is also updated as we don't get
     // it from React Query.
     RecentList.refresh();
+  },
+);
+
+/** Set the internal volume used from what's stored in AsyncStorage. */
+userPreferencesStore.subscribe(
+  (state) => state.volume,
+  async (volume) => {
+    await TrackPlayer.setVolume(volume);
   },
 );
 //#endregion

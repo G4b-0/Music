@@ -10,9 +10,9 @@ import type { PlayListSource } from "../types";
 
 import { cn } from "@/lib/style";
 import type { Maybe, Prettify } from "@/utils/types";
-import { Ripple } from "@/components/new/Form";
-import { Loading } from "@/components/new/Loading";
-import { StyledText } from "@/components/new/Typography";
+import { IconButton, Ripple } from "@/components/Form";
+import { Loading } from "@/components/Loading";
+import { StyledText } from "@/components/Typography";
 import { MediaImage } from "./MediaImage";
 
 //#region Track
@@ -41,8 +41,6 @@ export function Track({ id, trackSource, ...props }: Track.Props) {
   return (
     <Ripple
       onPress={() => playFromMediaList({ trackId: id, source: trackSource })}
-      wrapperClassName="rounded-sm"
-      className="p-0"
     >
       {props.LeftElement ? (
         props.LeftElement
@@ -62,13 +60,13 @@ export function Track({ id, trackSource, ...props }: Track.Props) {
           {props.description}
         </StyledText>
       </View>
-      <Ripple
-        preset="icon"
+      <IconButton
+        kind="ripple"
         accessibilityLabel={t("template.entrySeeMore", { name: props.title })}
         onPress={() => SheetManager.show("track-sheet", { payload: { id } })}
       >
         <MoreVert />
-      </Ripple>
+      </IconButton>
     </Ripple>
   );
 }
@@ -85,7 +83,7 @@ type TrackListProps = {
 /** Presets used in the FlashList for `<TrackList />`. */
 export const TrackListPreset = (props: TrackListProps) =>
   ({
-    estimatedItemSize: 56, // 48px Height + 8px Margin Botton
+    estimatedItemSize: 56, // 48px Height + 8px Margin Top
     data: props.data,
     keyExtractor: ({ id }) => id,
     renderItem: ({ item, index }) => (

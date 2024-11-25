@@ -1,16 +1,14 @@
 import { Stack, useLocalSearchParams } from "expo-router";
-import { useSetAtom } from "jotai";
 import { useMemo } from "react";
 import { View } from "react-native";
 
-import { EllipsisVertical } from "@/resources/icons/EllipsisVertical";
-import { useFavoriteTracksForCurrentPage } from "@/api/favorites";
-import { usePlaylistForCurrentPage } from "@/api/playlists/[id]";
-import { mediaModalAtom } from "@/modals/categories/media/store";
+import { MoreVert } from "@/icons";
+import { useFavoriteTracksForScreen } from "@/queries/favorite";
+import { usePlaylistForScreen } from "@/queries/playlist";
+import { MediaListHeader } from "@/layouts/CurrentList";
 
-import { MediaScreenHeader } from "@/components/media/screen-header";
-import { StyledPressable } from "@/components/ui/pressable";
-import { Description } from "@/components/ui/text";
+import { IconButton } from "@/components/Form";
+import { StyledText } from "@/components/Typography";
 import { ReservedPlaylists } from "@/modules/media/constants";
 import { TrackList } from "@/modules/media/components";
 import type { MediaList } from "@/modules/media/types";
@@ -19,7 +17,6 @@ import type { MediaList } from "@/modules/media/types";
 export default function CurrentPlaylistScreen() {
   const { id: _id } = useLocalSearchParams<{ id: string }>();
   const id = _id!;
-  const openModal = useSetAtom(mediaModalAtom);
 
   const isFavoriteTracks = useMemo(
     () => id === ReservedPlaylists.favorites,
@@ -27,28 +24,26 @@ export default function CurrentPlaylistScreen() {
   );
 
   if (isFavoriteTracks) {
-    return <PlaylistListContent queryHook={useFavoriteTracksForCurrentPage} />;
+    return <PlaylistListContent queryHook={useFavoriteTracksForScreen} />;
   }
   return (
     <>
       <Stack.Screen
         options={{
           headerRight: () => (
-            <StyledPressable
+            <IconButton
+              kind="ripple"
               accessibilityLabel="View playlist settings."
-              onPress={() =>
-                openModal({ entity: "playlist", scope: "view", id })
-              }
-              forIcon
+              onPress={() => console.log("Configuring playlist...")}
             >
-              <EllipsisVertical size={24} />
-            </StyledPressable>
+              <MoreVert />
+            </IconButton>
           ),
         }}
       />
       <PlaylistListContent
         id={id}
-        queryHook={usePlaylistForCurrentPage}
+        queryHook={usePlaylistForScreen}
         origin="playlist"
       />
     </>
@@ -58,8 +53,8 @@ export default function CurrentPlaylistScreen() {
 type PlaylistContent = {
   origin?: MediaList;
 } & (
-  | { id: string; queryHook: typeof usePlaylistForCurrentPage }
-  | { id?: never; queryHook: typeof useFavoriteTracksForCurrentPage }
+  | { id: string; queryHook: typeof usePlaylistForScreen }
+  | { id?: never; queryHook: typeof useFavoriteTracksForScreen }
 );
 
 /** Basic structure of what we want to render on page. */
@@ -70,7 +65,9 @@ function PlaylistListContent({ id, queryHook, origin }: PlaylistContent) {
   else if (error) {
     return (
       <View className="w-full flex-1 px-4">
-        <Description intent="error">Error: Playlist not found</Description>
+        <StyledText preset="dimOnCanvas" className="text-base">
+          Error: Playlist not found
+        </StyledText>
       </View>
     );
   }
@@ -80,7 +77,8 @@ function PlaylistListContent({ id, queryHook, origin }: PlaylistContent) {
 
   return (
     <View className="w-full flex-1 px-4">
-      <MediaScreenHeader
+      <MediaListHeader
+        // @ts-expect-error Technically fine as this is used for playlists.
         source={data.imageSource}
         title={data.name}
         metadata={data.metadata}
@@ -88,12 +86,12 @@ function PlaylistListContent({ id, queryHook, origin }: PlaylistContent) {
       />
       <TrackList
         data={data.tracks}
-        config={{ source: trackSource, origin }}
-        ListEmptyComponent={
-          <Description>
-            {id ? "No tracks in playlist." : "No favorited tracks."}
-          </Description>
-        }
+        trackSource={trackSource}
+        // ListEmptyComponent={
+        //   <Description>
+        //     {id ? "No tracks in playlist." : "No favorited tracks."}
+        //   </Description>
+        // }
       />
     </View>
   );

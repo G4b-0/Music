@@ -1,26 +1,28 @@
 import { useLocalSearchParams } from "expo-router";
-import { View } from "react-native";
+import { ScrollView, View } from "react-native";
 
 import type { Album } from "@/db/schema";
-import { useArtistForCurrentPage } from "@/api/artists/[id]";
-import { useGetColumn } from "@/hooks/useGetColumn";
 
-import { MediaScreenHeader } from "@/components/media/screen-header";
-import { ScrollRow } from "@/components/ui/container";
-import { Description, Heading } from "@/components/ui/text";
+import { useArtistForScreen } from "@/queries/artist";
+import { useGetColumn } from "@/hooks/useGetColumn";
+import { MediaListHeader } from "@/layouts/CurrentList";
+
+import { StyledText } from "@/components/Typography";
 import { MediaCard, TrackList } from "@/modules/media/components";
 
 /** Screen for `/artist/[id]` route. */
 export default function CurrentArtistScreen() {
   const { id: _artistName } = useLocalSearchParams<{ id: string }>();
   const artistName = _artistName!;
-  const { isPending, error, data } = useArtistForCurrentPage(artistName);
+  const { isPending, error, data } = useArtistForScreen(artistName);
 
   if (isPending) return <View className="w-full flex-1 px-4" />;
   else if (error) {
     return (
       <View className="w-full flex-1 px-4">
-        <Description intent="error">Error: Artist not found</Description>
+        <StyledText preset="dimOnCanvas" className="text-base">
+          Error: Artist not found
+        </StyledText>
       </View>
     );
   }
@@ -31,7 +33,7 @@ export default function CurrentArtistScreen() {
   return (
     <>
       <View className="px-4">
-        <MediaScreenHeader
+        <MediaListHeader
           title={data.name}
           metadata={data.metadata}
           trackSource={trackSource}
@@ -39,14 +41,14 @@ export default function CurrentArtistScreen() {
       </View>
       <TrackList
         data={data.tracks}
-        config={{ source: trackSource, origin: "artist" }}
-        ListHeaderComponent={<ArtistAlbums albums={data.albums} />}
-        contentContainerStyle={{ paddingHorizontal: 20 }}
-        ListEmptyComponent={
-          <Description className="text-start">
-            Artist has no tracks.
-          </Description>
-        }
+        trackSource={trackSource}
+        // ListHeaderComponent={<ArtistAlbums albums={data.albums} />}
+        // contentContainerStyle={{ paddingHorizontal: 20 }}
+        // ListEmptyComponent={
+        //   <Description className="text-start">
+        //     Artist has no tracks.
+        //   </Description>
+        // }
       />
     </>
   );
@@ -63,13 +65,17 @@ function ArtistAlbums({ albums }: { albums: Album[] | null }) {
 
   if (!albums) return null;
 
+  // FIXME: We should use a horizontal FlashList
   return (
     <>
-      <Heading as="h3" className="mb-2 text-start">
-        Albums
-      </Heading>
+      <StyledText className="mb-2 text-xl">Albums</StyledText>
       <View className="-mx-5 mb-4">
-        <ScrollRow contentContainerClassName="gap-4 px-5">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          overScrollMode="never"
+          contentContainerClassName="grow gap-4 px-5"
+        >
           {albums.map((album) => (
             <MediaCard
               key={album.id}
@@ -81,11 +87,9 @@ function ArtistAlbums({ albums }: { albums: Album[] | null }) {
               subtitle={`${album.releaseYear ?? "————"}`}
             />
           ))}
-        </ScrollRow>
+        </ScrollView>
       </View>
-      <Heading as="h3" className="mb-2 text-start">
-        Tracks
-      </Heading>
+      <StyledText className="mb-2 text-xl">Tracks</StyledText>
     </>
   );
 }
