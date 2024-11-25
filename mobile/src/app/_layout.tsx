@@ -19,14 +19,6 @@ export const unstable_settings = {
   initialRouteName: "(main)/(home)",
 };
 
-Sentry.init({
-  dsn: "https://bbd726405356cdfb20b85f5f924fd3e3@o4507687432617984.ingest.us.sentry.io/4507687447101440",
-  ignoreErrors: [
-    /Missing .* permissions/,
-    // Expo development errors:
-    "Unable to activate keep awake",
-  ],
-});
 
 export default function RootLayout() {
   const { isLoaded, error } = useLoadResources();
